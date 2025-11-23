@@ -250,6 +250,139 @@ export async function POST(request) {
       return NextResponse.json({ success: true, appointment: data })
     }
 
+    // Reschedule appointment
+    if (path.match(/\/api\/appointments\/.*\/reschedule/)) {
+      const auth = getUserFromRequest(request)
+      if (!auth) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const appointmentId = path.split('/')[3]
+      const { date, startTime, endTime } = await request.json()
+      
+      // Get appointment details
+      const { data: appointment } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('id', appointmentId)
+        .single()
+      
+      if (!appointment) {
+        return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
+      }
+
+      // Update appointment
+      const { data: updated, error } = await supabase
+        .from('appointments')
+        .update({ 
+          date,
+          start_time: startTime,
+          end_time: endTime
+        })
+        .eq('id', appointmentId)
+        .select()
+        .single()
+      
+      if (error) throw error
+
+      // Get patient and doctor info
+      const { data: patient } = await supabase.from('users').select('*').eq('id', appointment.patient_id).single()
+      const { data: doctor } = await supabase.from('users').select('*').eq('id', appointment.doctor_id).single()
+
+      // Send email notification to patient
+      if (patient && doctor) {
+        await sendEmail({
+          to: patient.email,
+          subject: 'Appointment Rescheduled',
+          html: `
+            <h2>Your appointment has been rescheduled</h2>
+            <p><strong>Doctor:</strong> Dr. ${doctor.name}</p>
+            <p><strong>New Date:</strong> ${date}</p>
+            <p><strong>New Time:</strong> ${startTime} - ${endTime}</p>
+            <p>Please check your dashboard for details.</p>
+          `
+        })
+      }
+
+      // Create notification for patient
+      const notifId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      await supabase.from('notifications').insert({
+        id: notifId,
+        user_id: appointment.patient_id,
+        message: `Your appointment with Dr. ${doctor.name} has been rescheduled to ${date} at ${startTime}`,
+        type: 'warning',
+        created_at: new Date().toISOString()
+      })
+
+      return NextResponse.json({ success: true, appointment: updated })
+    }
+
+    // Cancel/Delete appointment
+    if (path.match(/\/api\/appointments\/.*\/cancel/)) {
+      const auth = getUserFromRequest(request)
+      if (!auth) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const appointmentId = path.split('/')[3]
+      
+      // Get appointment details first
+      const { data: appointment } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('id', appointmentId)
+        .single()
+      
+      if (!appointment) {
+        return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
+      }
+
+      // Get patient and doctor info
+      const { data: patient } = await supabase.from('users').select('*').eq('id', appointment.patient_id).single()
+      const { data: doctor } = await supabase.from('users').select('*').eq('id', appointment.doctor_id).single()
+
+      // Mark time slot as available again
+      await supabase
+        .from('time_slots')
+        .update({ is_available: true })
+        .eq('id', appointment.time_slot_id)
+
+      // Update appointment status to cancelled
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', appointmentId)
+      
+      if (error) throw error
+
+      // Send email notification to patient
+      if (patient && doctor) {
+        await sendEmail({
+          to: patient.email,
+          subject: 'Appointment Cancelled',
+          html: `
+            <h2>Your appointment has been cancelled</h2>
+            <p><strong>Doctor:</strong> Dr. ${doctor.name}</p>
+            <p><strong>Date:</strong> ${appointment.date}</p>
+            <p><strong>Time:</strong> ${appointment.start_time} - ${appointment.end_time}</p>
+            <p>The doctor had to cancel this appointment. Please book a new slot if needed.</p>
+          `
+        })
+      }
+
+      // Create notification for patient
+      const notifId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      await supabase.from('notifications').insert({
+        id: notifId,
+        user_id: appointment.patient_id,
+        message: `Your appointment with Dr. ${doctor.name} on ${appointment.date} at ${appointment.start_time} has been cancelled`,
+        type: 'error',
+        created_at: new Date().toISOString()
+      })
+
+      return NextResponse.json({ success: true })
+    }
+
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   } catch (error) {
     console.error('API Error:', error)
