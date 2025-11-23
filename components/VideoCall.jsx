@@ -211,20 +211,43 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
       
       if (data && data.length > 0) {
         for (const signal of data) {
-          if (peerRef.current) {
+          // Skip if we've already processed this signal
+          if (processedSignalsRef.current.has(signal.id)) {
+            continue
+          }
+          
+          console.log('Processing signal:', signal.signal_type, 'from user:', signal.user_id)
+          
+          if (peerRef.current && peerRef.current.connected === false) {
             try {
               peerRef.current.signal(signal.signal_data)
+              processedSignalsRef.current.add(signal.id)
             } catch (error) {
               console.error('Error processing signal:', error)
             }
-          } else if (signal.signal_type === 'offer') {
+          } else if (signal.signal_type === 'offer' && !peerRef.current) {
             // We received an offer, create peer as non-initiator
-            initiateConnection(false)
+            console.log('Received offer, creating peer as receiver')
+            createPeer(false, streamRef.current)
+            
+            // Process the offer after peer is created
             setTimeout(() => {
               if (peerRef.current) {
-                peerRef.current.signal(signal.signal_data)
+                try {
+                  peerRef.current.signal(signal.signal_data)
+                  processedSignalsRef.current.add(signal.id)
+                } catch (error) {
+                  console.error('Error processing delayed offer:', error)
+                }
               }
-            }, 100)
+            }, 200)
+          } else if (peerRef.current) {
+            try {
+              peerRef.current.signal(signal.signal_data)
+              processedSignalsRef.current.add(signal.id)
+            } catch (error) {
+              console.error('Error processing signal:', error)
+            }
           }
           
           // Delete processed signal
