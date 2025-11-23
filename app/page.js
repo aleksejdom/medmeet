@@ -454,7 +454,7 @@ export default function App() {
   // Video Call View
   if (activeCall) {
     return (
-      <VideoCallSimple
+      <VideoCallDaily
         roomId={activeCall}
         userName={user.name}
         onLeave={leaveVideoCall}
