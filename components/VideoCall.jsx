@@ -134,8 +134,8 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
 
   const createPeer = (isInitiator, stream) => {
     if (peerRef.current) {
-      console.log('Peer already exists, destroying old one')
-      peerRef.current.destroy()
+      console.log('Peer already exists, skipping creation')
+      return
     }
 
     console.log('Creating peer as', isInitiator ? 'initiator' : 'receiver')
@@ -148,7 +148,9 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
+          { urls: 'stun:global.stun.twilio.com:3478' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
         ]
       }
     })
@@ -165,13 +167,14 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
           signal_data: signal,
           created_at: new Date().toISOString()
         }])
+        console.log('Signal sent successfully')
       } catch (error) {
         console.error('Error sending signal:', error)
       }
     })
 
     peer.on('stream', (stream) => {
-      console.log('Received remote stream')
+      console.log('Received remote stream!')
       setRemoteStream(stream)
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream
@@ -180,28 +183,26 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
     })
 
     peer.on('connect', () => {
-      console.log('Peer connected')
+      console.log('Peer data channel connected!')
       setConnectionStatus('Connected')
     })
 
     peer.on('error', (err) => {
       console.error('Peer error:', err)
-      setConnectionStatus('Connection failed - retrying...')
-      // Retry connection after a delay
-      setTimeout(() => {
-        if (!remoteStream) {
-          createPeer(isInitiator, stream)
-        }
-      }, 3000)
+      setConnectionStatus('Connection error: ' + err.message)
     })
 
     peer.on('close', () => {
-      console.log('Peer connection closed')
-      setConnectionStatus('Connection closed')
-      setRemoteStream(null)
+      console.log('Peer connection closed by remote')
+      if (remoteStream) {
+        setConnectionStatus('Participant left')
+      } else {
+        setConnectionStatus('Connection failed')
+      }
     })
 
     peerRef.current = peer
+    console.log('Peer created and stored in ref')
   }
 
   const initiateConnection = (isInitiator) => {
