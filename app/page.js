@@ -139,7 +139,8 @@ export default function App() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, password: formData.password })
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+        credentials: 'include'
       })
       const data = await res.json()
       if (res.ok) {
@@ -156,7 +157,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
       Cookies.remove('userId')
       setUser(null)
       setView('login')
@@ -177,7 +178,8 @@ export default function App() {
           startTime: formData.startTime,
           endTime: formData.endTime,
           duration: 30
-        })
+        }),
+        credentials: 'include'
       })
       if (res.ok) {
         toast.success('Time slot created!')
@@ -193,7 +195,10 @@ export default function App() {
 
   const deleteTimeSlot = async (slotId) => {
     try {
-      const res = await fetch(`/api/time-slots/${slotId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/time-slots/${slotId}`, { 
+        method: 'DELETE',
+        credentials: 'include'
+      })
       if (res.ok) {
         toast.success('Time slot deleted')
         loadDoctorData()
@@ -205,7 +210,9 @@ export default function App() {
 
   const loadDoctorSlots = async (doctorId, date) => {
     try {
-      const res = await fetch(`/api/time-slots?doctorId=${doctorId}&date=${date}&available=true`)
+      const res = await fetch(`/api/time-slots?doctorId=${doctorId}&date=${date}&available=true`, {
+        credentials: 'include'
+      })
       const data = await res.json()
       setAvailableSlots(data.slots || [])
     } catch (error) {
@@ -218,7 +225,8 @@ export default function App() {
       const res = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId, notes: formData.notes || '' })
+        body: JSON.stringify({ slotId, notes: formData.notes || '' }),
+        credentials: 'include'
       })
       if (res.ok) {
         toast.success('Appointment booked successfully!')
@@ -240,7 +248,8 @@ export default function App() {
       const res = await fetch(`/api/appointments/${appointmentId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status }),
+        credentials: 'include'
       })
       if (res.ok) {
         toast.success(`Appointment ${status}`)
