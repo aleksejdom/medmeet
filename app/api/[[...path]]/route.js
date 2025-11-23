@@ -79,7 +79,12 @@ export async function POST(request) {
         success: true, 
         user: { id: user.id, email: user.email, name: user.name, role: user.role } 
       })
-      response.cookies.set('userId', user.id, { httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
+      response.cookies.set('userId', user.id, { 
+        httpOnly: true, 
+        maxAge: 60 * 60 * 24 * 7,
+        sameSite: 'lax',
+        path: '/'
+      })
       return response
     }
 
