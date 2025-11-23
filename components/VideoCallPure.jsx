@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Video, VideoOff, Mic, MicOff, Phone, RefreshCw } from 'lucide-react'
+import { Video, VideoOff, Mic, MicOff, Phone, RefreshCw, Bell } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import toast from 'react-hot-toast'
 
 export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
   const [localStream, setLocalStream] = useState(null)
@@ -12,6 +13,9 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [videoEnabled, setVideoEnabled] = useState(true)
   const [error, setError] = useState(null)
+  const [waitingForOther, setWaitingForOther] = useState(false)
+  const [otherUserReady, setOtherUserReady] = useState(false)
+  const [hasJoinedCall, setHasJoinedCall] = useState(false)
   
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
@@ -20,9 +24,10 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
   const localStreamRef = useRef(null)
   const iceCandidatesRef = useRef([])
   const isInitiatorRef = useRef(false)
+  const hasNotifiedRef = useRef(false)
 
   useEffect(() => {
-    initializeCall()
+    checkRoomStatus()
     return () => cleanup()
   }, [])
 
