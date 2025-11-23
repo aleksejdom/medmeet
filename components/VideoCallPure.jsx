@@ -358,8 +358,15 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
   }
 
   const startPolling = () => {
-    // Update presence
-    pollingIntervalRef.current = setInterval(async () => {
+    console.log('Starting signal polling...')
+    
+    // Clear any existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+    }
+    
+    // Update presence and check signals
+    const pollInterval = setInterval(async () => {
       // Update last seen
       await supabase
         .from('room_participants')
@@ -372,12 +379,15 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
       
       // Check if other participant joined (for initiator)
       if (isInitiatorRef.current && !peerConnectionRef.current?.remoteDescription) {
-        await checkForParticipant()
+        await checkForParticipantInCall()
       }
     }, 1000)
+    
+    // Don't overwrite the monitoring interval, use a different reference
+    pollingIntervalRef.current = pollInterval
   }
 
-  const checkForParticipant = async () => {
+  const checkForParticipantInCall = async () => {
     const { data } = await supabase
       .from('room_participants')
       .select('*')
@@ -386,6 +396,7 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
     
     if (data && data.length > 0 && !peerConnectionRef.current?.localDescription) {
       // Other participant joined, create offer
+      console.log('Other participant joined the call, creating offer...')
       setConnectionState('Participant joined! Connecting...')
       await createAndSendOffer()
     }
