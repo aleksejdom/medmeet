@@ -13,11 +13,14 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [videoEnabled, setVideoEnabled] = useState(true)
   const [connectionStatus, setConnectionStatus] = useState('Connecting...')
+  const [isInitiator, setIsInitiator] = useState(false)
   
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
   const peerRef = useRef(null)
   const pollingIntervalRef = useRef(null)
+  const streamRef = useRef(null)
+  const processedSignalsRef = useRef(new Set())
 
   useEffect(() => {
     initializeCall()
@@ -28,27 +31,40 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
 
   const initializeCall = async () => {
     try {
-      // Join room
-      await joinRoom()
+      setConnectionStatus('Getting camera access...')
       
-      // Get local media stream
+      // Get local media stream first
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: { width: 1280, height: 720 },
         audio: true
       })
+      
+      streamRef.current = stream
       setLocalStream(stream)
+      
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream
       }
 
-      // Check for other participants
-      await checkParticipants()
+      setConnectionStatus('Joining room...')
       
-      // Start polling for signaling and participants
+      // Join room and check if we're first
+      const amIFirst = await joinRoom()
+      setIsInitiator(amIFirst)
+      
+      if (amIFirst) {
+        setConnectionStatus('Waiting for other participant...')
+      } else {
+        setConnectionStatus('Found participant, connecting...')
+        // If there's already someone, create peer as non-initiator
+        setTimeout(() => createPeer(false, stream), 500)
+      }
+      
+      // Start polling
       startPolling()
     } catch (error) {
       console.error('Failed to initialize call:', error)
-      setConnectionStatus('Failed to access camera/microphone')
+      setConnectionStatus('Failed to access camera/microphone. Please allow permissions.')
     }
   }
 
