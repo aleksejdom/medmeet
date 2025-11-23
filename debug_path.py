@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://medmeet-2.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://medmeet-3.preview.emergentagent.com')
 
 def test_path_handling():
     """Test different path formats"""
