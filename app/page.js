@@ -454,7 +454,7 @@ export default function App() {
   // Video Call View
   if (activeCall) {
     return (
-      <VideoCall
+      <VideoCallJitsi
         roomId={activeCall}
         userId={user.id}
         userName={user.name}
