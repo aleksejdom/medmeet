@@ -282,6 +282,47 @@ export default function App() {
     }
   }
 
+  const cancelAppointment = async (appointmentId) => {
+    if (!confirm('Are you sure you want to cancel this appointment? The patient will be notified.')) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/appointments/${appointmentId}/cancel`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+      if (res.ok) {
+        toast.success('Appointment cancelled. Patient has been notified.')
+        loadDoctorData()
+      } else {
+        toast.error('Failed to cancel appointment')
+      }
+    } catch (error) {
+      toast.error('Failed to cancel appointment')
+    }
+  }
+
+  const rescheduleAppointment = async (appointmentId, date, startTime, endTime) => {
+    try {
+      const res = await fetch(`/api/appointments/${appointmentId}/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, startTime, endTime }),
+        credentials: 'include'
+      })
+      if (res.ok) {
+        toast.success('Appointment rescheduled. Patient has been notified.')
+        setFormData({})
+        loadDoctorData()
+      } else {
+        toast.error('Failed to reschedule appointment')
+      }
+    } catch (error) {
+      toast.error('Failed to reschedule appointment')
+    }
+  }
+
   const joinVideoCall = (roomId) => {
     setActiveCall(roomId)
     toast.success('Joining video call...')
