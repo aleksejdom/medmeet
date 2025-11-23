@@ -221,6 +221,23 @@ export default function App() {
     }
   }
 
+  const loadAllDoctorSlots = async (doctorId) => {
+    try {
+      const res = await fetch(`/api/time-slots?doctorId=${doctorId}&available=true`, {
+        credentials: 'include'
+      })
+      const data = await res.json()
+      // Filter out past dates and sort by date
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
+      const futureSlots = (data.slots || []).filter(slot => slot.date >= today)
+      setAvailableSlots(futureSlots)
+      setFormData({ ...formData, selectedSlot: null, notes: '' })
+    } catch (error) {
+      console.error('Failed to load slots:', error)
+    }
+  }
+
   const bookAppointment = async (slotId) => {
     try {
       const res = await fetch('/api/appointments', {
