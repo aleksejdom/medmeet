@@ -52,12 +52,21 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
       const amIFirst = await joinRoom()
       setIsInitiator(amIFirst)
       
+      console.log('Am I first?', amIFirst, 'Room:', roomId, 'User:', userId)
+      
       if (amIFirst) {
         setConnectionStatus('Waiting for other participant...')
+        console.log('I am the initiator, waiting for participant')
       } else {
         setConnectionStatus('Found participant, connecting...')
-        // If there's already someone, create peer as non-initiator
-        setTimeout(() => createPeer(false, stream), 500)
+        console.log('I am the receiver, creating peer immediately')
+        // If there's already someone, create peer as non-initiator immediately
+        setTimeout(() => {
+          if (!peerRef.current) {
+            console.log('Creating peer as receiver NOW')
+            createPeer(false, stream)
+          }
+        }, 1000)
       }
       
       // Start polling
