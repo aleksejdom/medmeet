@@ -58,8 +58,8 @@ def test_session_behavior():
     # Test other endpoints that should require auth
     print("\n5. Testing other protected endpoints...")
     endpoints = [
-        ("GET", "/api/appointments"),
-        ("GET", "/api/notifications"),
+        ("GET", "/api/appointments", None),
+        ("GET", "/api/notifications", None),
         ("POST", "/api/time-slots", {"date": "2025-11-25", "startTime": "09:00", "endTime": "09:30"}),
         ("DELETE", "/api/time-slots/fake_id", None)
     ]
