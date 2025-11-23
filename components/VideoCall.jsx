@@ -69,6 +69,15 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
   }
 
   const joinRoom = async () => {
+    // Check if there are existing participants first
+    const { data: existingParticipants } = await supabase
+      .from('room_participants')
+      .select('*')
+      .eq('room_id', roomId)
+      .neq('user_id', userId)
+    
+    const amIFirst = !existingParticipants || existingParticipants.length === 0
+    
     const participantId = `participant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     await supabase.from('room_participants').insert([{
       id: participantId,
@@ -78,6 +87,8 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
       joined_at: new Date().toISOString(),
       last_seen: new Date().toISOString()
     }])
+    
+    return amIFirst
   }
 
   const checkParticipants = async () => {
