@@ -127,75 +127,16 @@ export default function VideoCallSupabase({ appointmentId, onLeave }) {
         supabaseChannelRef.current = channel
 
         channel
-          .on('broadcast', { event: 'offer' }, async ({ payload }) => {
-            console.log('Received offer')
-            try {
-              if (peerConnection.signalingState !== 'stable') {
-                console.log('Signaling state not stable, ignoring offer')
-                return
-              }
+          .on('broadcast', { event: 'ready' }, async ({ payload }) => {
+            console.log('Peer is ready')
+            // If we haven't received an offer and we're not the initiator, we become the initiator
+            if (!hasReceivedOfferRef.current && !isInitiatorRef.current) {
+              isInitiatorRef.current = true
+              console.log('Becoming initiator')
               
-              await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer))
+              // Wait a bit to ensure peer is set up
+              await new Promise(resolve => setTimeout(resolve, 500))
               
-              // Process queued ICE candidates
-              while (iceCandidatesQueueRef.current.length > 0) {
-                const candidate = iceCandidatesQueueRef.current.shift()
-                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-              }
-              
-              const answer = await peerConnection.createAnswer()
-              await peerConnection.setLocalDescription(answer)
-              
-              channel.send({
-                type: 'broadcast',
-                event: 'answer',
-                payload: { answer }
-              })
-              
-              setConnectionStatus('Answering call...')
-            } catch (error) {
-              console.error('Error handling offer:', error)
-              toast.error('Failed to process call offer')
-            }
-          })
-          .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-            console.log('Received answer')
-            try {
-              await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer))
-              
-              // Process queued ICE candidates
-              while (iceCandidatesQueueRef.current.length > 0) {
-                const candidate = iceCandidatesQueueRef.current.shift()
-                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-              }
-              
-              setConnectionStatus('Connecting...')
-            } catch (error) {
-              console.error('Error handling answer:', error)
-            }
-          })
-          .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-            console.log('Received ICE candidate')
-            try {
-              if (peerConnection.remoteDescription) {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate))
-              } else {
-                // Queue candidates until remote description is set
-                iceCandidatesQueueRef.current.push(payload.candidate)
-              }
-            } catch (error) {
-              console.error('Error adding ICE candidate:', error)
-            }
-          })
-          .subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Subscribed to channel')
-              setConnectionStatus('Waiting for other participant...')
-              
-              // Small delay to ensure both peers are subscribed
-              await new Promise(resolve => setTimeout(resolve, 1000))
-              
-              // Create and send offer
               try {
                 const offer = await peerConnection.createOffer()
                 await peerConnection.setLocalDescription(offer)
@@ -212,6 +153,94 @@ export default function VideoCallSupabase({ appointmentId, onLeave }) {
                 console.error('Error creating offer:', error)
                 toast.error('Failed to initiate call')
               }
+            }
+          })
+          .on('broadcast', { event: 'offer' }, async ({ payload }) => {
+            console.log('Received offer')
+            hasReceivedOfferRef.current = true
+            
+            try {
+              if (peerConnection.signalingState !== 'stable') {
+                console.log('Signaling state not stable, ignoring offer')
+                return
+              }
+              
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer))
+              
+              // Process queued ICE candidates
+              while (iceCandidatesQueueRef.current.length > 0) {
+                const candidate = iceCandidatesQueueRef.current.shift()
+                try {
+                  await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+                } catch (e) {
+                  console.error('Error adding queued candidate:', e)
+                }
+              }
+              
+              const answer = await peerConnection.createAnswer()
+              await peerConnection.setLocalDescription(answer)
+              
+              channel.send({
+                type: 'broadcast',
+                event: 'answer',
+                payload: { answer }
+              })
+              
+              console.log('Sent answer')
+              setConnectionStatus('Connecting...')
+            } catch (error) {
+              console.error('Error handling offer:', error)
+              toast.error('Failed to process call offer')
+            }
+          })
+          .on('broadcast', { event: 'answer' }, async ({ payload }) => {
+            console.log('Received answer')
+            try {
+              if (peerConnection.signalingState === 'have-local-offer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer))
+                
+                // Process queued ICE candidates
+                while (iceCandidatesQueueRef.current.length > 0) {
+                  const candidate = iceCandidatesQueueRef.current.shift()
+                  try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+                  } catch (e) {
+                    console.error('Error adding queued candidate:', e)
+                  }
+                }
+                
+                setConnectionStatus('Connecting...')
+              }
+            } catch (error) {
+              console.error('Error handling answer:', error)
+            }
+          })
+          .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
+            console.log('Received ICE candidate')
+            try {
+              if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate))
+              } else {
+                // Queue candidates until remote description is set
+                iceCandidatesQueueRef.current.push(payload.candidate)
+              }
+            } catch (error) {
+              console.error('Error adding ICE candidate:', error)
+            }
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Subscribed to channel')
+              setConnectionStatus('Waiting for other participant...')
+              
+              // Announce we're ready
+              channel.send({
+                type: 'broadcast',
+                event: 'ready',
+                payload: { timestamp: Date.now() }
+              })
+              
+              console.log('Sent ready signal')
             }
           })
 
