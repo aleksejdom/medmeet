@@ -289,33 +289,50 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
   }
 
   const cleanup = async () => {
+    console.log('Cleaning up video call...')
+    
     // Stop polling
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
     }
 
     // Close peer connection
     if (peerRef.current) {
       peerRef.current.destroy()
+      peerRef.current = null
     }
 
     // Stop local stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    
     if (localStream) {
       localStream.getTracks().forEach(track => track.stop())
     }
 
-    // Remove from room
-    await supabase
-      .from('room_participants')
-      .delete()
-      .eq('room_id', roomId)
-      .eq('user_id', userId)
-    
-    // Clean up old signals
-    await supabase
-      .from('webrtc_signals')
-      .delete()
-      .eq('room_id', roomId)
+    // Clear processed signals
+    processedSignalsRef.current.clear()
+
+    try {
+      // Remove from room
+      await supabase
+        .from('room_participants')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
+      
+      // Clean up signals from this user
+      await supabase
+        .from('webrtc_signals')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
+    } catch (error) {
+      console.error('Error during cleanup:', error)
+    }
   }
 
   const handleLeave = async () => {
