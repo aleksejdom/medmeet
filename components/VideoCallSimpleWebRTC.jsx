@@ -38,13 +38,18 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
         localVideoRef.current.srcObject = stream
       }
 
-      // Create peer connection
+      // Create peer connection with multiple STUN servers
       setStatus('Creating connection...')
       const pc = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ],
+        iceCandidatePoolSize: 10
       })
       pcRef.current = pc
 
