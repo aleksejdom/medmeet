@@ -31,8 +31,67 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
     return () => cleanup()
   }, [])
 
+  const checkRoomStatus = async () => {
+    try {
+      // Check if other user is already in the room
+      const { data: participants } = await supabase
+        .from('room_participants')
+        .select('*')
+        .eq('room_id', roomId)
+        .neq('user_id', userId)
+      
+      if (participants && participants.length > 0) {
+        // Other user is already there
+        setOtherUserReady(true)
+        setWaitingForOther(false)
+        toast.success('Other participant is ready! Click "Join Call" to connect.')
+      } else {
+        // I'm first, wait for other
+        setWaitingForOther(true)
+        setConnectionState('Preparing to join...')
+        // Start monitoring for other user
+        startMonitoringForParticipant()
+      }
+    } catch (err) {
+      console.error('Error checking room:', err)
+      setError('Failed to check room status')
+    }
+  }
+
+  const startMonitoringForParticipant = () => {
+    const interval = setInterval(async () => {
+      const { data: participants } = await supabase
+        .from('room_participants')
+        .select('*')
+        .eq('room_id', roomId)
+        .neq('user_id', userId)
+      
+      if (participants && participants.length > 0) {
+        clearInterval(interval)
+        setOtherUserReady(true)
+        setWaitingForOther(false)
+        
+        // Show notification
+        if (!hasNotifiedRef.current) {
+          hasNotifiedRef.current = true
+          toast.success('🎉 Other participant has joined! Click "Join Call" to connect.', {
+            duration: 6000,
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            }
+          })
+        }
+      }
+    }, 2000) // Check every 2 seconds
+    
+    // Store interval to clear on cleanup
+    pollingIntervalRef.current = interval
+  }
+
   const initializeCall = async () => {
     try {
+      setHasJoinedCall(true)
       setConnectionState('Getting camera access...')
       
       // Get local media
@@ -57,12 +116,13 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
       createPeerConnection(stream)
       
       if (amIFirst) {
-        setConnectionState('Waiting for other participant...')
-        // Initiator waits for other peer
+        setConnectionState('Ready - waiting for other participant...')
+        setWaitingForOther(true)
+        // Don't notify myself
       } else {
         setConnectionState('Connecting to participant...')
         // Non-initiator creates and sends offer immediately
-        setTimeout(() => createAndSendOffer(), 1000)
+        setTimeout(() => createAndSendOffer(), 1500)
       }
       
       // Start polling for signals
@@ -72,6 +132,7 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
       console.error('Failed to initialize:', err)
       setError(`Camera/microphone error: ${err.message}`)
       setConnectionState('Failed')
+      setHasJoinedCall(false)
     }
   }
 
