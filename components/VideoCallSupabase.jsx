@@ -1,0 +1,369 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Video, VideoOff, Mic, MicOff, PhoneOff } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { createClient } from '@supabase/supabase-js'
+
+export default function VideoCallSupabase({ appointmentId, onLeave }) {
+  const [isConnected, setIsConnected] = useState(false)
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true)
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true)
+  const [connectionStatus, setConnectionStatus] = useState('Initializing...')
+
+  const localVideoRef = useRef(null)
+  const remoteVideoRef = useRef(null)
+  const localStreamRef = useRef(null)
+  const peerConnectionRef = useRef(null)
+  const supabaseChannelRef = useRef(null)
+  const supabaseClientRef = useRef(null)
+  const iceCandidatesQueueRef = useRef([])
+
+  // Initialize WebRTC and Supabase signaling
+  useEffect(() => {
+    let mounted = true
+
+    const initializeCall = async () => {
+      try {
+        // Initialize Supabase client
+        supabaseClientRef.current = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        )
+
+        setConnectionStatus('Getting camera and microphone access...')
+        
+        // Get local media stream
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        })
+        
+        if (!mounted) return
+
+        localStreamRef.current = stream
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream
+        }
+
+        setConnectionStatus('Setting up connection...')
+
+        // Create RTCPeerConnection
+        const configuration = {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
+          ]
+        }
+
+        const peerConnection = new RTCPeerConnection(configuration)
+        peerConnectionRef.current = peerConnection
+
+        // Add local stream tracks to peer connection
+        stream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, stream)
+        })
+
+        // Handle incoming tracks
+        peerConnection.ontrack = (event) => {
+          console.log('Received remote track:', event.track.kind)
+          if (remoteVideoRef.current && event.streams[0]) {
+            remoteVideoRef.current.srcObject = event.streams[0]
+            setIsConnected(true)
+            setConnectionStatus('Connected')
+            toast.success('Video call connected!')
+          }
+        }
+
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate && supabaseChannelRef.current) {
+            console.log('Sending ICE candidate')
+            supabaseChannelRef.current.send({
+              type: 'broadcast',
+              event: 'ice-candidate',
+              payload: { candidate: event.candidate }
+            })
+          }
+        }
+
+        // Handle connection state changes
+        peerConnection.onconnectionstatechange = () => {
+          console.log('Connection state:', peerConnection.connectionState)
+          switch (peerConnection.connectionState) {
+            case 'connected':
+              setConnectionStatus('Connected')
+              setIsConnected(true)
+              toast.success('Video call connected!')
+              break
+            case 'disconnected':
+              setConnectionStatus('Disconnected')
+              setIsConnected(false)
+              break
+            case 'failed':
+              setConnectionStatus('Connection failed')
+              toast.error('Connection failed. Please try again.')
+              break
+            case 'closed':
+              setConnectionStatus('Connection closed')
+              setIsConnected(false)
+              break
+          }
+        }
+
+        // Subscribe to Supabase Realtime channel for signaling
+        const channel = supabaseClientRef.current.channel(`video-call-${appointmentId}`)
+        supabaseChannelRef.current = channel
+
+        channel
+          .on('broadcast', { event: 'offer' }, async ({ payload }) => {
+            console.log('Received offer')
+            try {
+              if (peerConnection.signalingState !== 'stable') {
+                console.log('Signaling state not stable, ignoring offer')
+                return
+              }
+              
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer))
+              
+              // Process queued ICE candidates
+              while (iceCandidatesQueueRef.current.length > 0) {
+                const candidate = iceCandidatesQueueRef.current.shift()
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+              }
+              
+              const answer = await peerConnection.createAnswer()
+              await peerConnection.setLocalDescription(answer)
+              
+              channel.send({
+                type: 'broadcast',
+                event: 'answer',
+                payload: { answer }
+              })
+              
+              setConnectionStatus('Answering call...')
+            } catch (error) {
+              console.error('Error handling offer:', error)
+              toast.error('Failed to process call offer')
+            }
+          })
+          .on('broadcast', { event: 'answer' }, async ({ payload }) => {
+            console.log('Received answer')
+            try {
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer))
+              
+              // Process queued ICE candidates
+              while (iceCandidatesQueueRef.current.length > 0) {
+                const candidate = iceCandidatesQueueRef.current.shift()
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+              }
+              
+              setConnectionStatus('Connecting...')
+            } catch (error) {
+              console.error('Error handling answer:', error)
+            }
+          })
+          .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
+            console.log('Received ICE candidate')
+            try {
+              if (peerConnection.remoteDescription) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate))
+              } else {
+                // Queue candidates until remote description is set
+                iceCandidatesQueueRef.current.push(payload.candidate)
+              }
+            } catch (error) {
+              console.error('Error adding ICE candidate:', error)
+            }
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Subscribed to channel')
+              setConnectionStatus('Waiting for other participant...')
+              
+              // Small delay to ensure both peers are subscribed
+              await new Promise(resolve => setTimeout(resolve, 1000))
+              
+              // Create and send offer
+              try {
+                const offer = await peerConnection.createOffer()
+                await peerConnection.setLocalDescription(offer)
+                
+                channel.send({
+                  type: 'broadcast',
+                  event: 'offer',
+                  payload: { offer }
+                })
+                
+                console.log('Sent offer')
+                setConnectionStatus('Calling...')
+              } catch (error) {
+                console.error('Error creating offer:', error)
+                toast.error('Failed to initiate call')
+              }
+            }
+          })
+
+      } catch (error) {
+        console.error('Error initializing call:', error)
+        toast.error('Failed to access camera/microphone')
+        setConnectionStatus('Failed to initialize')
+      }
+    }
+
+    initializeCall()
+
+    // Cleanup
+    return () => {
+      mounted = false
+      
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop())
+      }
+      
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close()
+      }
+      
+      if (supabaseChannelRef.current) {
+        supabaseClientRef.current.removeChannel(supabaseChannelRef.current)
+      }
+    }
+  }, [appointmentId])
+
+  // Toggle video
+  const toggleVideo = () => {
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0]
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled
+        setIsVideoEnabled(videoTrack.enabled)
+      }
+    }
+  }
+
+  // Toggle audio
+  const toggleAudio = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0]
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled
+        setIsAudioEnabled(audioTrack.enabled)
+      }
+    }
+  }
+
+  // Leave call
+  const handleLeave = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop())
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+    }
+    if (supabaseChannelRef.current && supabaseClientRef.current) {
+      supabaseClientRef.current.removeChannel(supabaseChannelRef.current)
+    }
+    onLeave()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black z-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold">Video Consultation</h2>
+            <p className="text-sm text-blue-100">{connectionStatus}</p>
+          </div>
+          <Button 
+            onClick={handleLeave}
+            variant="destructive"
+            className="bg-red-600 hover:bg-red-700"
+          >
+            <PhoneOff className="mr-2 h-4 w-4" />
+            Leave Call
+          </Button>
+        </div>
+      </div>
+
+      {/* Video Grid */}
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-900">
+        {/* Local Video */}
+        <Card className="relative bg-gray-800 border-gray-700 overflow-hidden">
+          <video
+            ref={localVideoRef}
+            autoPlay
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute bottom-4 left-4 bg-black/50 px-3 py-1 rounded text-white text-sm">
+            You
+          </div>
+          {!isVideoEnabled && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+              <VideoOff className="h-16 w-16 text-gray-400" />
+            </div>
+          )}
+        </Card>
+
+        {/* Remote Video */}
+        <Card className="relative bg-gray-800 border-gray-700 overflow-hidden">
+          {isConnected ? (
+            <>
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-4 left-4 bg-black/50 px-3 py-1 rounded text-white text-sm">
+                Other Participant
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center text-gray-400">
+                <Video className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <p className="text-lg">Waiting for other participant...</p>
+                <p className="text-sm mt-2">{connectionStatus}</p>
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Controls */}
+      <div className="bg-gray-800 p-4 border-t border-gray-700">
+        <div className="max-w-7xl mx-auto flex justify-center gap-4">
+          <Button
+            onClick={toggleVideo}
+            variant={isVideoEnabled ? "default" : "destructive"}
+            size="lg"
+            className="rounded-full w-14 h-14"
+          >
+            {isVideoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+          </Button>
+          <Button
+            onClick={toggleAudio}
+            variant={isAudioEnabled ? "default" : "destructive"}
+            size="lg"
+            className="rounded-full w-14 h-14"
+          >
+            {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
