@@ -250,13 +250,13 @@ frontend:
           agent: "testing"
           comment: "Frontend not tested as per testing agent guidelines. UI components appear to be implemented with proper authentication flow."
 
-  - task: "Video Call - PeerJS WebRTC Implementation"
+  - task: "Video Call - Pure WebRTC with Supabase Signaling"
     implemented: true
     working: true
-    file: "components/VideoCallPeerJS.jsx"
+    file: "components/VideoCallSupabase.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
           agent: "main"
@@ -264,6 +264,9 @@ frontend:
         - working: true
           agent: "main"
           comment: "Fixed dashboard redirection after leaving video call. Updated leaveVideoCall function to explicitly set view to 'dashboard' and reload user data (appointments/time slots). User now properly returns to dashboard after ending call. No Jitsi branding present."
+        - working: true
+          agent: "main"
+          comment: "Replaced PeerJS with completely self-hosted solution. Implemented pure WebRTC using browser APIs with Supabase Realtime for signaling (offer/answer/ICE candidate exchange). No third-party video providers. Uses existing Supabase infrastructure. Completely free solution with no external dependencies."
 
 metadata:
   created_by: "testing_agent"
