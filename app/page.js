@@ -713,8 +713,7 @@ export default function App() {
                           }`}
                           onClick={() => {
                             setSelectedDoctor(doctor)
-                            setFormData({ ...formData, selectedDate: '' })
-                            setAvailableSlots([])
+                            loadAllDoctorSlots(doctor.id)
                           }}
                         >
                           <div className="flex items-center gap-3 mb-2">
@@ -746,60 +745,107 @@ export default function App() {
                   </CardContent>
                 </Card>
 
-                {/* Select Date and Slot */}
+                {/* Available Slots */}
                 {selectedDoctor && (
                   <Card>
                     <CardHeader>
-                      <CardTitle>Available Slots for Dr. {selectedDoctor.name}</CardTitle>
+                      <CardTitle>Available Appointments - Dr. {selectedDoctor.name}</CardTitle>
+                      <CardDescription>
+                        {selectedDoctor.doctor_profiles?.[0]?.specialization && (
+                          <span>{selectedDoctor.doctor_profiles[0].specialization} • </span>
+                        )}
+                        Click on a time slot to book
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div>
-                        <Label>Select Date</Label>
-                        <Input
-                          type="date"
-                          value={formData.selectedDate || ''}
-                          min={new Date().toISOString().split('T')[0]}
-                          onChange={(e) => {
-                            setFormData({ ...formData, selectedDate: e.target.value })
-                            loadDoctorSlots(selectedDoctor.id, e.target.value)
-                          }}
-                        />
-                      </div>
-
-                      {availableSlots.length > 0 && (
-                        <div>
-                          <Label>Available Time Slots</Label>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                            {availableSlots.map((slot) => (
-                              <Button
-                                key={slot.id}
-                                variant="outline"
-                                className="flex flex-col h-auto py-3"
-                                onClick={() => bookAppointment(slot.id)}
+                      {availableSlots.length > 0 ? (
+                        <div className="space-y-6">
+                          {Object.entries(
+                            availableSlots.reduce((acc, slot) => {
+                              if (!acc[slot.date]) acc[slot.date] = []
+                              acc[slot.date].push(slot)
+                              return acc
+                            }, {})
+                          ).map(([date, slots]) => (
+                            <div key={date} className="space-y-3">
+                              <div className="flex items-center gap-2 pb-2 border-b">
+                                <Calendar className="w-4 h-4 text-blue-600" />
+                                <h3 className="font-semibold text-gray-900">
+                                  {new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })}
+                                </h3>
+                                <Badge variant="secondary" className="ml-auto">
+                                  {slots.length} {slots.length === 1 ? 'slot' : 'slots'}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                {slots.map((slot) => (
+                                  <Button
+                                    key={slot.id}
+                                    variant="outline"
+                                    className="flex flex-col h-auto py-3 hover:bg-blue-50 hover:border-blue-500"
+                                    onClick={() => {
+                                      setFormData({ ...formData, selectedSlot: slot })
+                                    }}
+                                  >
+                                    <Clock className="w-4 h-4 mb-1 text-blue-600" />
+                                    <span className="text-sm font-semibold">{slot.start_time}</span>
+                                    <span className="text-xs text-gray-500">to {slot.end_time}</span>
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {formData.selectedSlot && (
+                            <div className="border-t pt-4 space-y-4">
+                              <div className="bg-blue-50 p-4 rounded-lg">
+                                <p className="text-sm font-semibold text-blue-900 mb-2">Selected Appointment:</p>
+                                <div className="flex items-center gap-4 text-sm text-blue-800">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-4 h-4" />
+                                    {new Date(formData.selectedSlot.date + 'T00:00:00').toLocaleDateString()}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-4 h-4" />
+                                    {formData.selectedSlot.start_time} - {formData.selectedSlot.end_time}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <Label>Additional Notes (Optional)</Label>
+                                <Textarea
+                                  placeholder="Any specific concerns or requirements..."
+                                  value={formData.notes || ''}
+                                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                  className="mt-2"
+                                />
+                              </div>
+                              
+                              <Button 
+                                onClick={() => bookAppointment(formData.selectedSlot.id)}
+                                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600"
+                                size="lg"
                               >
-                                <Clock className="w-4 h-4 mb-1" />
-                                <span className="text-sm font-semibold">{slot.start_time}</span>
-                                <span className="text-xs text-gray-500">to {slot.end_time}</span>
+                                Confirm Booking
                               </Button>
-                            ))}
-                          </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 text-lg font-medium">No available slots</p>
+                          <p className="text-gray-400 text-sm mt-2">
+                            Dr. {selectedDoctor.name} has no available appointments at the moment
+                          </p>
                         </div>
                       )}
-
-                      {formData.selectedDate && availableSlots.length === 0 && (
-                        <p className="text-center text-gray-500 py-4">
-                          No available slots for this date
-                        </p>
-                      )}
-
-                      <div>
-                        <Label>Additional Notes (Optional)</Label>
-                        <Textarea
-                          placeholder="Any specific concerns or requirements..."
-                          value={formData.notes || ''}
-                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        />
-                      </div>
                     </CardContent>
                   </Card>
                 )}
