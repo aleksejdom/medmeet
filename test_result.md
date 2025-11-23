@@ -269,7 +269,8 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Video Call - PeerJS WebRTC Implementation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -277,3 +278,5 @@ test_plan:
 agent_communication:
     - agent: "testing"
       message: "Comprehensive backend API testing completed. All 12 backend tasks are working correctly. Authentication, time slot management, appointment booking, notifications, and email integration all functioning as expected. No critical issues found. System ready for production use."
+    - agent: "main"
+      message: "Implemented new PeerJS-based video call solution without Jitsi or Daily.co. The solution uses PeerJS library which handles WebRTC signaling automatically. Each video call uses the appointment ID to identify peers. Component handles camera/microphone access, peer connections, and call controls. Backend APIs remain unchanged and are already tested. Ready for backend testing to ensure no regressions, then frontend testing of video functionality."
