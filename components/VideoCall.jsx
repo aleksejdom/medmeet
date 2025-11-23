@@ -100,9 +100,17 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
     
     if (data && data.length > 0) {
       setParticipants(data)
-      // If there's another participant, initiate connection
-      if (!peerRef.current) {
-        initiateConnection(true)
+      
+      // If we're the initiator and there's another participant, start the connection
+      if (isInitiator && !peerRef.current && streamRef.current) {
+        console.log('Found participant, initiating connection as initiator')
+        setConnectionStatus('Connecting to participant...')
+        createPeer(true, streamRef.current)
+      }
+    } else {
+      setParticipants([])
+      if (isInitiator) {
+        setConnectionStatus('Waiting for other participant...')
       }
     }
   }
