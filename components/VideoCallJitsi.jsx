@@ -172,14 +172,26 @@ export default function VideoCallJitsi({ roomId, userId, userName, onLeave }) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
           <Video className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-white text-xl font-semibold mb-2">Error</h2>
+          <h2 className="text-white text-xl font-semibold mb-2">Video Call Error</h2>
           <p className="text-gray-400 mb-4">{error}</p>
-          <Button onClick={onLeave} variant="outline">
-            Go Back
-          </Button>
+          <div className="space-y-2">
+            <Button onClick={onLeave} variant="outline" className="w-full">
+              Go Back to Dashboard
+            </Button>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="secondary"
+              className="w-full"
+            >
+              Reload Page
+            </Button>
+          </div>
+          <p className="text-gray-500 text-xs mt-4">
+            Check browser console (F12) for detailed error logs
+          </p>
         </div>
       </div>
     )
@@ -191,8 +203,9 @@ export default function VideoCallJitsi({ roomId, userId, userName, onLeave }) {
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-white text-lg">Loading video call...</p>
-            <p className="text-gray-400 text-sm mt-2">Please allow camera and microphone access</p>
+            <p className="text-white text-lg font-semibold">{loadingMessage}</p>
+            <p className="text-gray-400 text-sm mt-2">Please allow camera and microphone access when prompted</p>
+            <p className="text-gray-500 text-xs mt-4">This may take up to 15 seconds...</p>
           </div>
         </div>
       )}
@@ -201,20 +214,22 @@ export default function VideoCallJitsi({ roomId, userId, userName, onLeave }) {
       <div 
         ref={jitsiContainerRef} 
         className="w-full h-full"
-        style={{ display: isLoading ? 'none' : 'block' }}
+        style={{ minHeight: '100vh' }}
       />
       
       {/* Custom leave button overlay */}
-      <div className="absolute top-4 right-4 z-20">
-        <Button 
-          onClick={handleLeave}
-          variant="destructive"
-          size="sm"
-          className="shadow-lg"
-        >
-          Leave Call
-        </Button>
-      </div>
+      {!isLoading && (
+        <div className="absolute top-4 right-4 z-20">
+          <Button 
+            onClick={handleLeave}
+            variant="destructive"
+            size="sm"
+            className="shadow-lg"
+          >
+            Leave Call
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
