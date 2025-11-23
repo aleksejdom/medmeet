@@ -71,7 +71,9 @@ export default function App() {
 
   const loadNotifications = async () => {
     try {
-      const res = await fetch('/api/notifications')
+      const res = await fetch('/api/notifications', {
+        credentials: 'include'
+      })
       const data = await res.json()
       setNotifications(data.notifications || [])
     } catch (error) {
