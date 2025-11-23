@@ -250,6 +250,18 @@ frontend:
           agent: "testing"
           comment: "Frontend not tested as per testing agent guidelines. UI components appear to be implemented with proper authentication flow."
 
+  - task: "Video Call - PeerJS WebRTC Implementation"
+    implemented: true
+    working: "NA"
+    file: "components/VideoCallPeerJS.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Implemented new PeerJS-based video call solution. Uses PeerJS library to simplify WebRTC signaling. Component gets camera/microphone access, creates peer connection using appointment ID, and handles incoming/outgoing calls. Integrated into app/page.js replacing Jitsi solution. Ready for testing."
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
