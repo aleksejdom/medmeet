@@ -290,6 +290,26 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
     }
   }
 
+  const retryConnection = async () => {
+    setStatus('Retrying connection...')
+    toast('Retrying connection...', { icon: '🔄' })
+    
+    // Clean up old connection
+    if (pcRef.current) {
+      pcRef.current.close()
+      pcRef.current = null
+    }
+    
+    // Clear old signals
+    await supabase
+      .from('webrtc_signals')
+      .delete()
+      .eq('room_id', roomId)
+    
+    // Restart call
+    setTimeout(() => startCall(), 1000)
+  }
+
   const cleanup = async () => {
     if (pcRef.current) {
       pcRef.current.close()
