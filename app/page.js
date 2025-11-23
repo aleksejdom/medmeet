@@ -99,8 +99,8 @@ export default function App() {
   const loadPatientData = async () => {
     try {
       const [doctorsRes, apptsRes] = await Promise.all([
-        fetch('/api/doctors'),
-        fetch('/api/appointments')
+        fetch('/api/doctors', { credentials: 'include' }),
+        fetch('/api/appointments', { credentials: 'include' })
       ])
       const doctorsData = await doctorsRes.json()
       const apptsData = await apptsRes.json()
