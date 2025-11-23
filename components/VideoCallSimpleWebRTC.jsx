@@ -102,6 +102,8 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
         .eq('room_id', roomId)
         .neq('user_id', userId)
 
+      console.log('Found other participants:', others?.length || 0)
+
       // Add myself
       await supabase.from('room_participants').upsert({
         id: `${roomId}_${userId}`,
@@ -113,13 +115,14 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
       })
 
       if (others && others.length > 0) {
-        // Someone else is here, I'll wait for their offer
-        setStatus('Waiting for connection...')
-        console.log('Other participant found, waiting for offer')
+        // Someone else is here, I'll create offer immediately
+        setStatus('Other participant found, connecting...')
+        console.log('Other participant found, creating offer')
+        setTimeout(() => createOffer(pc), 500)
       } else {
-        // I'm first, wait 2 seconds then create offer
+        // I'm first, wait for other
         setStatus('Waiting for other participant...')
-        console.log('I am first')
+        console.log('I am first, will wait for other to join')
         setTimeout(() => createOffer(pc), 2000)
       }
     } catch (err) {
@@ -129,7 +132,13 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
 
   const createOffer = async (pc) => {
     try {
-      // Check again if other user joined
+      // Check if we already have remote description (already connected)
+      if (pc.remoteDescription) {
+        console.log('Already connected, skipping offer')
+        return
+      }
+
+      // Check if other user joined
       const { data: others } = await supabase
         .from('room_participants')
         .select('*')
@@ -138,13 +147,13 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
 
       if (!others || others.length === 0) {
         // Still alone, check again in 2 seconds
-        console.log('Still alone, checking again...')
+        console.log('Still alone, checking again in 2s...')
         setTimeout(() => createOffer(pc), 2000)
         return
       }
 
       console.log('Creating offer...')
-      setStatus('Connecting...')
+      setStatus('Creating connection offer...')
       
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
@@ -154,9 +163,11 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
         offer: offer
       })
       
-      console.log('Offer sent')
+      console.log('Offer sent successfully')
+      setStatus('Waiting for answer...')
     } catch (err) {
       console.error('Error creating offer:', err)
+      setStatus('Error creating offer')
     }
   }
 
