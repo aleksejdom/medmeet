@@ -7,12 +7,16 @@ import Cookies from 'js-cookie'
 // Helper to get user from cookie
 function getUserFromRequest(request) {
   const cookieHeader = request.headers.get('cookie') || ''
-  const cookies = Object.fromEntries(
-    cookieHeader.split('; ').map(c => {
+  if (!cookieHeader) return null
+  
+  const cookies = {}
+  cookieHeader.split('; ').forEach(c => {
+    if (c && c.includes('=')) {
       const [key, ...v] = c.split('=')
-      return [key, v.join('=')]
-    })
-  )
+      cookies[key] = v.join('=')
+    }
+  })
+  
   return cookies.userId ? { userId: cookies.userId } : null
 }
 
