@@ -84,8 +84,8 @@ export default function App() {
   const loadDoctorData = async () => {
     try {
       const [slotsRes, apptsRes] = await Promise.all([
-        fetch(`/api/time-slots?doctorId=${user.id}`),
-        fetch('/api/appointments')
+        fetch(`/api/time-slots?doctorId=${user.id}`, { credentials: 'include' }),
+        fetch('/api/appointments', { credentials: 'include' })
       ])
       const slotsData = await slotsRes.json()
       const apptsData = await apptsRes.json()
