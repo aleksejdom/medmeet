@@ -20,6 +20,8 @@ export default function VideoCallSupabase({ appointmentId, onLeave }) {
   const supabaseChannelRef = useRef(null)
   const supabaseClientRef = useRef(null)
   const iceCandidatesQueueRef = useRef([])
+  const isInitiatorRef = useRef(false)
+  const hasReceivedOfferRef = useRef(false)
 
   // Initialize WebRTC and Supabase signaling
   useEffect(() => {
