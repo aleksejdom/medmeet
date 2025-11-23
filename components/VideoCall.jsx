@@ -244,50 +244,62 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
         .order('created_at', { ascending: true })
       
       if (data && data.length > 0) {
+        console.log(`Found ${data.length} signals to process`)
+        
         for (const signal of data) {
           // Skip if we've already processed this signal
           if (processedSignalsRef.current.has(signal.id)) {
+            console.log('Skipping already processed signal:', signal.id)
             // Delete already processed signal
             await supabase.from('webrtc_signals').delete().eq('id', signal.id)
             continue
           }
           
-          console.log('Processing signal:', signal.signal_type, 'from user:', signal.user_id)
+          console.log('📡 Processing signal:', signal.signal_type, 'from user:', signal.user_id, 'hasPeer:', !!peerRef.current)
           
           if (signal.signal_type === 'offer' && !peerRef.current) {
-            // We received an offer, create peer as non-initiator
-            console.log('Received offer, creating peer as receiver')
+            // We received an offer, we must be the receiver
+            console.log('🎯 Received offer but no peer, creating peer as receiver')
             createPeer(false, streamRef.current)
             
             // Process the offer after peer is created
             setTimeout(() => {
-              if (peerRef.current) {
+              if (peerRef.current && !peerRef.current.destroyed) {
                 try {
-                  console.log('Processing offer signal')
+                  console.log('✅ Processing offer signal')
                   peerRef.current.signal(signal.signal_data)
                   processedSignalsRef.current.add(signal.id)
                 } catch (error) {
-                  console.error('Error processing delayed offer:', error)
+                  console.error('❌ Error processing delayed offer:', error)
                 }
+              } else {
+                console.log('⚠️ Peer not ready or destroyed')
               }
-            }, 300)
+            }, 500)
           } else if (peerRef.current && !peerRef.current.destroyed) {
             try {
-              console.log('Applying signal to existing peer')
+              console.log('✅ Applying signal to existing peer:', signal.signal_type)
               peerRef.current.signal(signal.signal_data)
               processedSignalsRef.current.add(signal.id)
             } catch (error) {
-              console.error('Error processing signal:', error)
+              console.error('❌ Error processing signal:', error.message)
             }
+          } else {
+            console.log('⚠️ Cannot process signal - peer not ready. Type:', signal.signal_type)
           }
           
           // Delete processed signal after a delay
           setTimeout(async () => {
-            await supabase
-              .from('webrtc_signals')
-              .delete()
-              .eq('id', signal.id)
-          }, 500)
+            try {
+              await supabase
+                .from('webrtc_signals')
+                .delete()
+                .eq('id', signal.id)
+              console.log('🗑️ Deleted signal:', signal.id)
+            } catch (err) {
+              console.error('Error deleting signal:', err)
+            }
+          }, 1000)
         }
       }
     } catch (error) {
