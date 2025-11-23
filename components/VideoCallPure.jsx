@@ -33,20 +33,36 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
 
   const checkRoomStatus = async () => {
     try {
+      console.log('Checking room status for room:', roomId)
+      
       // Check if other user is already in the room
-      const { data: participants } = await supabase
+      const { data: participants, error } = await supabase
         .from('room_participants')
         .select('*')
         .eq('room_id', roomId)
         .neq('user_id', userId)
       
+      console.log('Found participants:', participants?.length || 0)
+      
+      if (error) {
+        console.error('Error querying participants:', error)
+      }
+      
       if (participants && participants.length > 0) {
         // Other user is already there
+        console.log('Other participant already in room!')
         setOtherUserReady(true)
         setWaitingForOther(false)
-        toast.success('Other participant is ready! Click "Join Call" to connect.')
+        toast.success('✓ Other participant is ready! Click "Join Video Call Now" to connect.', {
+          duration: 5000,
+          style: {
+            background: '#10b981',
+            color: '#fff',
+          }
+        })
       } else {
         // I'm first, wait for other
+        console.log('I am first, starting monitoring...')
         setWaitingForOther(true)
         setConnectionState('Preparing to join...')
         // Start monitoring for other user
@@ -59,33 +75,52 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
   }
 
   const startMonitoringForParticipant = () => {
-    const interval = setInterval(async () => {
-      const { data: participants } = await supabase
-        .from('room_participants')
-        .select('*')
-        .eq('room_id', roomId)
-        .neq('user_id', userId)
-      
-      if (participants && participants.length > 0) {
-        clearInterval(interval)
-        setOtherUserReady(true)
-        setWaitingForOther(false)
-        
-        // Show notification
-        if (!hasNotifiedRef.current) {
-          hasNotifiedRef.current = true
-          toast.success('🎉 Other participant has joined! Click "Join Call" to connect.', {
-            duration: 6000,
-            style: {
-              background: '#10b981',
-              color: '#fff',
-            }
-          })
-        }
-      }
-    }, 2000) // Check every 2 seconds
+    console.log('Starting participant monitoring...')
     
-    // Store interval to clear on cleanup
+    const checkForParticipant = async () => {
+      try {
+        const { data: participants } = await supabase
+          .from('room_participants')
+          .select('*')
+          .eq('room_id', roomId)
+          .neq('user_id', userId)
+        
+        console.log('Polling: Found', participants?.length || 0, 'participants')
+        
+        if (participants && participants.length > 0) {
+          console.log('Other participant detected!')
+          
+          // Stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          
+          setOtherUserReady(true)
+          setWaitingForOther(false)
+          
+          // Show notification only once
+          if (!hasNotifiedRef.current) {
+            hasNotifiedRef.current = true
+            toast.success('🎉 Other participant has joined! Click "Join Video Call Now" to connect.', {
+              duration: 6000,
+              style: {
+                background: '#10b981',
+                color: '#fff',
+              }
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Error checking for participant:', err)
+      }
+    }
+    
+    // Check immediately
+    checkForParticipant()
+    
+    // Then check every 2 seconds
+    const interval = setInterval(checkForParticipant, 2000)
     pollingIntervalRef.current = interval
   }
 
