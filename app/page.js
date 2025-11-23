@@ -330,7 +330,16 @@ export default function App() {
 
   const leaveVideoCall = () => {
     setActiveCall(null)
+    setView('dashboard')
     toast.success('Left video call')
+    // Reload appointments to refresh data
+    if (user) {
+      if (user.role === 'doctor') {
+        loadDoctorData()
+      } else {
+        loadPatientData()
+      }
+    }
   }
 
   if (loading) {
