@@ -437,52 +437,12 @@ export default function App() {
   // Video Call View
   if (activeCall) {
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col">
-        <div className="bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Video className="w-6 h-6 text-white" />
-            <h2 className="text-white font-semibold">Video Call</h2>
-          </div>
-          <Button onClick={leaveVideoCall} variant="destructive">
-            Leave Call
-          </Button>
-        </div>
-        
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-6xl">
-            <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center border-4 border-blue-500">
-              <div className="text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <Users className="w-12 h-12 text-white" />
-                </div>
-                <p className="text-white text-lg font-semibold">You</p>
-                <p className="text-gray-400 text-sm">Video Active</p>
-              </div>
-            </div>
-            
-            <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <Users className="w-12 h-12 text-white" />
-                </div>
-                <p className="text-white text-lg font-semibold">Participant</p>
-                <p className="text-gray-400 text-sm">Waiting to connect...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-gray-800 border-t border-gray-700 p-6">
-          <div className="max-w-4xl mx-auto">
-            <p className="text-center text-gray-400 text-sm">
-              Room ID: {activeCall}
-            </p>
-            <p className="text-center text-gray-500 text-xs mt-2">
-              WebRTC video call functionality is active. In production, this would establish a peer-to-peer connection.
-            </p>
-          </div>
-        </div>
-      </div>
+      <VideoCall
+        roomId={activeCall}
+        userId={user.id}
+        userName={user.name}
+        onLeave={leaveVideoCall}
+      />
     )
   }
 
