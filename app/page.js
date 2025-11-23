@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, Clock, Video, Users, Bell, LogOut, Plus, Trash2, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Cookies from 'js-cookie'
-import VideoCallDaily from '@/components/VideoCallDaily'
+import VideoCallJitsiSimple from '@/components/VideoCallJitsiSimple'
 
 export default function App() {
   const [user, setUser] = useState(null)
