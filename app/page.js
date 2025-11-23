@@ -679,7 +679,7 @@ export default function App() {
                             className="p-4 rounded-lg border bg-white hover:shadow-md transition-shadow"
                           >
                             <div className="flex items-start justify-between mb-3">
-                              <div>
+                              <div className="flex-1">
                                 <p className="font-semibold text-gray-900">
                                   Patient: {appt.patient?.name}
                                 </p>
@@ -696,6 +696,65 @@ export default function App() {
                                 {appt.notes && (
                                   <p className="text-sm text-gray-600 mt-2">Notes: {appt.notes}</p>
                                 )}
+                                
+                                {/* Reschedule form */}
+                                {formData.editingAppt === appt.id && (
+                                  <div className="mt-3 p-3 bg-blue-50 rounded-lg space-y-2">
+                                    <p className="text-sm font-semibold text-blue-900">Reschedule Appointment:</p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <Label className="text-xs">New Date</Label>
+                                        <Input
+                                          type="date"
+                                          size="sm"
+                                          value={formData.rescheduleDate || appt.date}
+                                          onChange={(e) => setFormData({ ...formData, rescheduleDate: e.target.value })}
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs">Start Time</Label>
+                                        <Input
+                                          type="time"
+                                          size="sm"
+                                          value={formData.rescheduleStart || appt.start_time}
+                                          onChange={(e) => setFormData({ ...formData, rescheduleStart: e.target.value })}
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs">End Time</Label>
+                                        <Input
+                                          type="time"
+                                          size="sm"
+                                          value={formData.rescheduleEnd || appt.end_time}
+                                          onChange={(e) => setFormData({ ...formData, rescheduleEnd: e.target.value })}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          rescheduleAppointment(
+                                            appt.id,
+                                            formData.rescheduleDate || appt.date,
+                                            formData.rescheduleStart || appt.start_time,
+                                            formData.rescheduleEnd || appt.end_time
+                                          )
+                                          setFormData({})
+                                        }}
+                                      >
+                                        Save Changes
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setFormData({})}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                               <Badge
                                 variant={
@@ -711,7 +770,7 @@ export default function App() {
                             </div>
                             
                             {appt.status === 'scheduled' && (
-                              <div className="flex gap-2">
+                              <div className="flex flex-wrap gap-2">
                                 <Button
                                   onClick={() => joinVideoCall(appt.video_room_id)}
                                   size="sm"
@@ -719,6 +778,27 @@ export default function App() {
                                 >
                                   <Video className="w-4 h-4 mr-2" />
                                   Join Call
+                                </Button>
+                                <Button
+                                  onClick={() => setFormData({ 
+                                    editingAppt: appt.id,
+                                    rescheduleDate: appt.date,
+                                    rescheduleStart: appt.start_time,
+                                    rescheduleEnd: appt.end_time
+                                  })}
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  <Calendar className="w-4 h-4 mr-2" />
+                                  Reschedule
+                                </Button>
+                                <Button
+                                  onClick={() => cancelAppointment(appt.id)}
+                                  size="sm"
+                                  variant="destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Cancel
                                 </Button>
                                 <Button
                                   onClick={() => updateAppointmentStatus(appt.id, 'completed')}
