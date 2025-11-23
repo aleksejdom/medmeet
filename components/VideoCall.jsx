@@ -222,19 +222,14 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
         for (const signal of data) {
           // Skip if we've already processed this signal
           if (processedSignalsRef.current.has(signal.id)) {
+            // Delete already processed signal
+            await supabase.from('webrtc_signals').delete().eq('id', signal.id)
             continue
           }
           
           console.log('Processing signal:', signal.signal_type, 'from user:', signal.user_id)
           
-          if (peerRef.current && peerRef.current.connected === false) {
-            try {
-              peerRef.current.signal(signal.signal_data)
-              processedSignalsRef.current.add(signal.id)
-            } catch (error) {
-              console.error('Error processing signal:', error)
-            }
-          } else if (signal.signal_type === 'offer' && !peerRef.current) {
+          if (signal.signal_type === 'offer' && !peerRef.current) {
             // We received an offer, create peer as non-initiator
             console.log('Received offer, creating peer as receiver')
             createPeer(false, streamRef.current)
@@ -243,15 +238,17 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
             setTimeout(() => {
               if (peerRef.current) {
                 try {
+                  console.log('Processing offer signal')
                   peerRef.current.signal(signal.signal_data)
                   processedSignalsRef.current.add(signal.id)
                 } catch (error) {
                   console.error('Error processing delayed offer:', error)
                 }
               }
-            }, 200)
-          } else if (peerRef.current) {
+            }, 300)
+          } else if (peerRef.current && !peerRef.current.destroyed) {
             try {
+              console.log('Applying signal to existing peer')
               peerRef.current.signal(signal.signal_data)
               processedSignalsRef.current.add(signal.id)
             } catch (error) {
@@ -259,11 +256,13 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
             }
           }
           
-          // Delete processed signal
-          await supabase
-            .from('webrtc_signals')
-            .delete()
-            .eq('id', signal.id)
+          // Delete processed signal after a delay
+          setTimeout(async () => {
+            await supabase
+              .from('webrtc_signals')
+              .delete()
+              .eq('id', signal.id)
+          }, 500)
         }
       }
     } catch (error) {
