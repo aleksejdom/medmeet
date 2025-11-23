@@ -79,8 +79,24 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
         if (pc.connectionState === 'connected') {
           setStatus('Connected')
         } else if (pc.connectionState === 'failed') {
-          setStatus('Connection failed')
-          toast.error('Connection failed. Try refreshing.')
+          setStatus('Connection failed - Click below to retry')
+          toast.error('Connection failed. This may be due to network/firewall. Click "Retry Connection" below.', {
+            duration: 6000
+          })
+        } else if (pc.connectionState === 'disconnected') {
+          setStatus('Disconnected')
+        }
+      }
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('ICE connection state:', pc.iceConnectionState)
+        if (pc.iceConnectionState === 'failed') {
+          console.error('ICE connection failed - may need TURN server')
+          setStatus('Connection failed - Network issue')
+        } else if (pc.iceConnectionState === 'checking') {
+          setStatus('Establishing connection...')
+        } else if (pc.iceConnectionState === 'connected') {
+          setStatus('Connected')
         }
       }
 
