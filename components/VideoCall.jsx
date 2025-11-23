@@ -157,17 +157,21 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
     }, 2000)
   }
 
-  const createPeer = (isInitiator, stream) => {
+  const createPeer = (initiator, stream) => {
     if (peerRef.current) {
-      console.log('Peer already exists, skipping creation')
+      console.log('⚠️ Peer already exists, skipping creation')
       return
     }
 
-    console.log('Creating peer as', isInitiator ? 'initiator' : 'receiver')
-    setConnectionStatus(isInitiator ? 'Initiating connection...' : 'Accepting connection...')
+    console.log('🚀 Creating peer as', initiator ? 'INITIATOR (will send offer)' : 'RECEIVER (will send answer)')
+    console.log('   Room:', roomId)
+    console.log('   User:', userId)
+    console.log('   Has stream:', !!stream, !!streamRef.current)
+    
+    setConnectionStatus(initiator ? 'Initiating connection...' : 'Accepting connection...')
 
     const peer = new SimplePeer({
-      initiator: isInitiator,
+      initiator: initiator,
       stream: stream || streamRef.current,
       trickle: true,
       config: {
@@ -181,44 +185,47 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
     })
 
     peer.on('signal', async (signal) => {
-      console.log('Sending signal:', signal.type)
+      const signalType = signal.type || (signal.sdp ? (signal.sdp.type) : 'candidate')
+      console.log('📤 Sending signal:', signalType, 'to room:', roomId)
+      
       try {
         const signalId = `signal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         await supabase.from('webrtc_signals').insert([{
           id: signalId,
           room_id: roomId,
           user_id: userId,
-          signal_type: signal.type === 'offer' ? 'offer' : signal.type === 'answer' ? 'answer' : 'ice-candidate',
+          signal_type: signalType === 'offer' ? 'offer' : signalType === 'answer' ? 'answer' : 'ice-candidate',
           signal_data: signal,
           created_at: new Date().toISOString()
         }])
-        console.log('Signal sent successfully')
+        console.log('✅ Signal sent successfully:', signalType)
       } catch (error) {
-        console.error('Error sending signal:', error)
+        console.error('❌ Error sending signal:', error)
       }
     })
 
     peer.on('stream', (stream) => {
-      console.log('Received remote stream!')
+      console.log('🎥 Received remote stream!')
       setRemoteStream(stream)
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream
+        console.log('✅ Remote video attached to element')
       }
       setConnectionStatus('Connected')
     })
 
     peer.on('connect', () => {
-      console.log('Peer data channel connected!')
+      console.log('✅ Peer data channel connected!')
       setConnectionStatus('Connected')
     })
 
     peer.on('error', (err) => {
-      console.error('Peer error:', err)
+      console.error('❌ Peer error:', err)
       setConnectionStatus('Connection error: ' + err.message)
     })
 
     peer.on('close', () => {
-      console.log('Peer connection closed by remote')
+      console.log('⚠️ Peer connection closed')
       if (remoteStream) {
         setConnectionStatus('Participant left')
       } else {
@@ -227,7 +234,7 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
     })
 
     peerRef.current = peer
-    console.log('Peer created and stored in ref')
+    console.log('✅ Peer created and stored in ref')
   }
 
   const initiateConnection = (isInitiator) => {
