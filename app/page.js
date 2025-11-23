@@ -495,9 +495,8 @@ export default function App() {
   // Video Call View
   if (activeCall) {
     return (
-      <VideoCallSimpleWebRTC
+      <VideoCallDaily
         roomId={activeCall}
-        userId={user.id}
         userName={user.name}
         onLeave={leaveVideoCall}
       />
