@@ -393,28 +393,56 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
 
       {/* Controls */}
       <div className="bg-gray-800 border-t border-gray-700 p-6">
-        <div className="max-w-md mx-auto flex items-center justify-center gap-4">
-          <Button
-            onClick={toggleAudio}
-            variant={audioEnabled ? 'secondary' : 'destructive'}
-            size="lg"
-            className="rounded-full w-14 h-14"
-          >
-            {audioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-          </Button>
+        <div className="max-w-md mx-auto space-y-4">
+          <div className="flex items-center justify-center gap-4">
+            <Button
+              onClick={toggleAudio}
+              variant={audioEnabled ? 'secondary' : 'destructive'}
+              size="lg"
+              className="rounded-full w-14 h-14"
+            >
+              {audioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
+            </Button>
+            
+            <Button
+              onClick={toggleVideo}
+              variant={videoEnabled ? 'secondary' : 'destructive'}
+              size="lg"
+              className="rounded-full w-14 h-14"
+            >
+              {videoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+            </Button>
+          </div>
           
-          <Button
-            onClick={toggleVideo}
-            variant={videoEnabled ? 'secondary' : 'destructive'}
-            size="lg"
-            className="rounded-full w-14 h-14"
-          >
-            {videoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-          </Button>
+          {status.includes('failed') && (
+            <Button
+              onClick={retryConnection}
+              variant="outline"
+              className="w-full"
+            >
+              🔄 Retry Connection
+            </Button>
+          )}
         </div>
+        
         <p className="text-center text-gray-400 text-xs mt-4">
-          Room: {roomId} • Both users must join within 30 seconds
+          Room: {roomId}
         </p>
+        
+        {status.includes('failed') && (
+          <div className="mt-4 p-3 bg-yellow-900/30 border border-yellow-700/50 rounded text-center">
+            <p className="text-yellow-200 text-sm font-semibold mb-1">Connection Issue</p>
+            <p className="text-yellow-300 text-xs">
+              This may be due to firewall/network restrictions. Try:
+            </p>
+            <ul className="text-yellow-300 text-xs mt-2 space-y-1">
+              <li>• Click "Retry Connection" above</li>
+              <li>• Both users refresh and rejoin</li>
+              <li>• Try different network (mobile data)</li>
+              <li>• Use same WiFi network if possible</li>
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )
