@@ -454,6 +454,84 @@ export default function VideoCallPure({ roomId, userId, userName, onLeave }) {
     onLeave()
   }
 
+  // Waiting room - before joining
+  if (!hasJoinedCall) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="max-w-lg w-full bg-white rounded-2xl shadow-2xl p-8">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Video className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Video Call Waiting Room</h2>
+            <p className="text-gray-600">Room: {roomId}</p>
+          </div>
+
+          {/* Status */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-6">
+            {waitingForOther && !otherUserReady && (
+              <div className="text-center">
+                <div className="animate-pulse mb-4">
+                  <Bell className="w-12 h-12 text-blue-600 mx-auto" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Waiting for other participant...
+                </h3>
+                <p className="text-sm text-gray-600">
+                  You'll be notified when they join. Keep this page open.
+                </p>
+              </div>
+            )}
+            
+            {otherUserReady && (
+              <div className="text-center">
+                <div className="mb-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center">
+                    <Bell className="w-8 h-8 text-green-600 animate-bounce" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold text-green-900 mb-2">
+                  ✓ Other participant is ready!
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Click the button below to join the video call
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-3">
+            <Button
+              onClick={initializeCall}
+              disabled={!otherUserReady && waitingForOther}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 py-6 text-lg"
+            >
+              <Video className="w-5 h-5 mr-2" />
+              {otherUserReady ? 'Join Video Call Now' : 'Waiting for Participant...'}
+            </Button>
+            
+            <Button onClick={handleLeave} variant="outline" className="w-full">
+              Back to Dashboard
+            </Button>
+          </div>
+
+          {/* Info */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs text-gray-600 text-center">
+              <strong>Your name:</strong> {userName}
+            </p>
+            <p className="text-xs text-gray-500 text-center mt-1">
+              Make sure your camera and microphone are ready
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state after joining
   if (error && !localStream) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
