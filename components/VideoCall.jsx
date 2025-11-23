@@ -105,9 +105,22 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
       if (isInitiator && !peerRef.current && streamRef.current) {
         console.log('Found participant, initiating connection as initiator')
         setConnectionStatus('Connecting to participant...')
-        createPeer(true, streamRef.current)
+        setTimeout(() => {
+          createPeer(true, streamRef.current)
+        }, 500)
       }
     } else {
+      // No other participants
+      if (participants.length > 0) {
+        // Someone left
+        console.log('Participant left the room')
+        setConnectionStatus('Participant left the call')
+        if (peerRef.current) {
+          peerRef.current.destroy()
+          peerRef.current = null
+        }
+        setRemoteStream(null)
+      }
       setParticipants([])
       if (isInitiator) {
         setConnectionStatus('Waiting for other participant...')
