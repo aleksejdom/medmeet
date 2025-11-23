@@ -495,9 +495,8 @@ export default function App() {
   // Video Call View
   if (activeCall) {
     return (
-      <VideoCallJitsiSimple
-        roomId={activeCall}
-        userName={user.name}
+      <VideoCallPeerJS
+        appointmentId={activeCall}
         onLeave={leaveVideoCall}
       />
     )
