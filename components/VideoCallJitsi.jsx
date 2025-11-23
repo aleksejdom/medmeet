@@ -9,11 +9,18 @@ export default function VideoCallJitsi({ roomId, userId, userName, onLeave }) {
   const jitsiApiRef = useRef(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [loadingMessage, setLoadingMessage] = useState('Loading video call...')
 
   useEffect(() => {
+    console.log('VideoCallJitsi mounted', { roomId, userId, userName })
+    
     // Load Jitsi Meet External API script
     const loadJitsiScript = () => {
+      console.log('Loading Jitsi script...')
+      setLoadingMessage('Loading video service...')
+      
       if (window.JitsiMeetExternalAPI) {
+        console.log('Jitsi API already loaded')
         initializeJitsi()
         return
       }
@@ -21,22 +28,37 @@ export default function VideoCallJitsi({ roomId, userId, userName, onLeave }) {
       const script = document.createElement('script')
       script.src = 'https://meet.jit.si/external_api.js'
       script.async = true
-      script.onload = () => initializeJitsi()
-      script.onerror = () => {
-        setError('Failed to load video call service')
+      script.onload = () => {
+        console.log('Jitsi script loaded successfully')
+        initializeJitsi()
+      }
+      script.onerror = (err) => {
+        console.error('Failed to load Jitsi script:', err)
+        setError('Failed to load video call service. Please check your internet connection.')
         setIsLoading(false)
       }
       document.body.appendChild(script)
     }
 
     const initializeJitsi = () => {
-      if (!jitsiContainerRef.current) return
+      console.log('Initializing Jitsi...')
+      setLoadingMessage('Initializing video call...')
+      
+      if (!jitsiContainerRef.current) {
+        console.error('Container ref not available')
+        setError('Video container not ready')
+        setIsLoading(false)
+        return
+      }
 
       try {
-        // Create Jitsi Meet instance
         const domain = 'meet.jit.si'
+        const roomName = `MedMeet_${roomId}`
+        
+        console.log('Creating Jitsi meeting:', { domain, roomName, userName })
+        
         const options = {
-          roomName: `MedMeet_${roomId}`,
+          roomName: roomName,
           width: '100%',
           height: '100%',
           parentNode: jitsiContainerRef.current,
@@ -82,27 +104,45 @@ export default function VideoCallJitsi({ roomId, userId, userName, onLeave }) {
 
         const api = new window.JitsiMeetExternalAPI(domain, options)
         jitsiApiRef.current = api
+        
+        console.log('Jitsi API created, waiting for events...')
 
         // Event listeners
-        api.addEventListener('videoConferenceJoined', () => {
-          console.log('User joined the conference')
+        api.addEventListener('videoConferenceJoined', (event) => {
+          console.log('✅ User joined the conference:', event)
           setIsLoading(false)
+          setLoadingMessage('')
         })
 
-        api.addEventListener('videoConferenceLeft', () => {
-          console.log('User left the conference')
+        api.addEventListener('videoConferenceLeft', (event) => {
+          console.log('User left the conference:', event)
           cleanup()
           onLeave()
         })
 
         api.addEventListener('readyToClose', () => {
+          console.log('Ready to close')
           cleanup()
           onLeave()
         })
+        
+        api.addEventListener('errorOccurred', (event) => {
+          console.error('Jitsi error occurred:', event)
+          setError(`Video call error: ${event.error || 'Unknown error'}`)
+          setIsLoading(false)
+        })
+        
+        // Timeout fallback - if nothing happens in 15 seconds, show the interface anyway
+        setTimeout(() => {
+          if (isLoading) {
+            console.log('Timeout reached, showing interface')
+            setIsLoading(false)
+          }
+        }, 15000)
 
       } catch (error) {
         console.error('Error initializing Jitsi:', error)
-        setError('Failed to initialize video call')
+        setError(`Failed to initialize video call: ${error.message}`)
         setIsLoading(false)
       }
     }
@@ -110,6 +150,7 @@ export default function VideoCallJitsi({ roomId, userId, userName, onLeave }) {
     loadJitsiScript()
 
     return () => {
+      console.log('VideoCallJitsi unmounting, cleaning up')
       cleanup()
     }
   }, [roomId, userName, onLeave])
