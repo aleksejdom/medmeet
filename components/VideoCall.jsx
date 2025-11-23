@@ -107,16 +107,19 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
       .eq('room_id', roomId)
       .neq('user_id', userId)
     
+    console.log('Checking participants, found:', data?.length || 0, 'isInitiator:', isInitiator, 'hasPeer:', !!peerRef.current)
+    
     if (data && data.length > 0) {
       setParticipants(data)
       
       // If we're the initiator and there's another participant, start the connection
       if (isInitiator && !peerRef.current && streamRef.current) {
-        console.log('Found participant, initiating connection as initiator')
+        console.log('INITIATOR: Found participant, creating peer as initiator NOW')
         setConnectionStatus('Connecting to participant...')
-        setTimeout(() => {
+        // Create peer immediately, don't wait
+        if (!peerRef.current) {
           createPeer(true, streamRef.current)
-        }, 500)
+        }
       }
     } else {
       // No other participants
@@ -131,7 +134,7 @@ export default function VideoCall({ roomId, userId, userName, onLeave }) {
         setRemoteStream(null)
       }
       setParticipants([])
-      if (isInitiator) {
+      if (isInitiator && !peerRef.current) {
         setConnectionStatus('Waiting for other participant...')
       }
     }
