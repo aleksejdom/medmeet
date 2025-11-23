@@ -182,33 +182,52 @@ export default function VideoCallSimpleWebRTC({ roomId, userId, userName, onLeav
 
       if (!signals || signals.length === 0) return
 
+      console.log(`Checking signals: found ${signals.length}`)
+
       for (const signal of signals) {
         const data = signal.signal_data
 
-        if (data.type === 'offer') {
-          console.log('Received offer')
-          setStatus('Connecting...')
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer))
-          
-          const answer = await pc.createAnswer()
-          await pc.setLocalDescription(answer)
-          
-          await sendSignal({
-            type: 'answer',
-            answer: answer
-          })
-          
-          console.log('Answer sent')
-        } else if (data.type === 'answer') {
-          console.log('Received answer')
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer))
-        } else if (data.type === 'candidate') {
-          console.log('Received ICE candidate')
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate))
-        }
+        try {
+          if (data.type === 'offer' && !pc.remoteDescription) {
+            console.log('📥 Received offer, creating answer...')
+            setStatus('Received offer, connecting...')
+            
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer))
+            
+            const answer = await pc.createAnswer()
+            await pc.setLocalDescription(answer)
+            
+            await sendSignal({
+              type: 'answer',
+              answer: answer
+            })
+            
+            console.log('📤 Answer sent')
+            setStatus('Answer sent, establishing connection...')
+            
+          } else if (data.type === 'answer' && !pc.remoteDescription) {
+            console.log('📥 Received answer')
+            setStatus('Received answer, connecting...')
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer))
+            console.log('✅ Remote description set')
+            
+          } else if (data.type === 'candidate') {
+            console.log('📥 Received ICE candidate')
+            if (pc.remoteDescription) {
+              await pc.addIceCandidate(new RTCIceCandidate(data.candidate))
+            } else {
+              console.log('⚠️ No remote description yet, queuing candidate')
+            }
+          }
 
-        // Delete signal
-        await supabase.from('webrtc_signals').delete().eq('id', signal.id)
+          // Delete signal after processing
+          await supabase.from('webrtc_signals').delete().eq('id', signal.id)
+          
+        } catch (err) {
+          console.error('Error processing signal:', err)
+          // Still delete the signal to avoid getting stuck
+          await supabase.from('webrtc_signals').delete().eq('id', signal.id)
+        }
       }
     } catch (err) {
       console.error('Error checking signals:', err)
