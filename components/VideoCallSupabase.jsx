@@ -16,6 +16,7 @@ export default function VideoCallSupabase({ appointmentId, onLeave }) {
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
   const localStreamRef = useRef(null)
+  const remoteStreamRef = useRef(null)
   const peerConnectionRef = useRef(null)
   const supabaseChannelRef = useRef(null)
   const supabaseClientRef = useRef(null)
