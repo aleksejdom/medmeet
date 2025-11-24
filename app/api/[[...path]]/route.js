@@ -566,6 +566,18 @@ export async function DELETE(request) {
   const path = url.pathname
 
   try {
+    // Delete signal
+    if (path.match(/\/api\/signals\/.+/)) {
+      const signalId = path.split('/').pop()
+      
+      await supabase
+        .from('webrtc_signals')
+        .delete()
+        .eq('id', signalId)
+      
+      return NextResponse.json({ success: true })
+    }
+
     // Delete time slot
     if (path.match(/\/api\/time-slots\/.+/)) {
       const auth = getUserFromRequest(request)
