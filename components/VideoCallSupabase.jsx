@@ -76,10 +76,27 @@ export default function VideoCallSupabase({ appointmentId, onLeave }) {
         })
 
         // Handle incoming tracks
+        let remoteStream = new MediaStream()
         peerConnection.ontrack = (event) => {
-          console.log('Received remote track:', event.track.kind)
-          if (remoteVideoRef.current && event.streams[0]) {
-            remoteVideoRef.current.srcObject = event.streams[0]
+          console.log('Received remote track:', event.track.kind, event)
+          
+          // Add track to remote stream
+          if (event.track) {
+            remoteStream.addTrack(event.track)
+            console.log('Added track to remote stream. Total tracks:', remoteStream.getTracks().length)
+          }
+          
+          // Set the stream on the video element
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = remoteStream
+            console.log('Set remote video srcObject')
+          }
+          
+          // Update connection status when we have both audio and video
+          const videoTracks = remoteStream.getVideoTracks()
+          const audioTracks = remoteStream.getAudioTracks()
+          
+          if (videoTracks.length > 0 || audioTracks.length > 0) {
             setIsConnected(true)
             setConnectionStatus('Connected')
             toast.success('Video call connected!')
