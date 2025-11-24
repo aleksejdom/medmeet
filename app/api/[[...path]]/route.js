@@ -383,6 +383,25 @@ export async function POST(request) {
       return NextResponse.json({ success: true })
     }
 
+    // Create signal
+    if (path === '/api/signals') {
+      const { appointmentId, from, type, data } = await request.json()
+      const to = from === 'doctor' ? 'patient' : 'doctor'
+      
+      const signalId = `signal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      await supabase.from('webrtc_signals').insert([{
+        id: signalId,
+        appointment_id: appointmentId,
+        from_role: from,
+        to_role: to,
+        signal_type: type,
+        signal_data: data,
+        created_at: new Date().toISOString()
+      }])
+
+      return NextResponse.json({ success: true })
+    }
+
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   } catch (error) {
     console.error('API Error:', error)
