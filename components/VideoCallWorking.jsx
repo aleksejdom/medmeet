@@ -122,6 +122,18 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
         // Connection state
         pc.oniceconnectionstatechange = () => {
           addLog(`🔗 ICE state: ${pc.iceConnectionState}`)
+          // Use ICE connection state as backup
+          if (pc.iceConnectionState === 'connected') {
+            setIsConnected(true)
+            setStatus('Connected!')
+            addLog('✅ Call connected via ICE')
+          } else if (pc.iceConnectionState === 'failed') {
+            setStatus('Connection failed - try refreshing')
+            setIsConnected(false)
+          } else if (pc.iceConnectionState === 'disconnected') {
+            setStatus('Disconnected')
+            setIsConnected(false)
+          }
         }
 
         pc.onconnectionstatechange = () => {
@@ -129,9 +141,14 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
           if (pc.connectionState === 'connected') {
             setIsConnected(true)
             setStatus('Connected!')
+            addLog('✅ Call fully connected')
           } else if (pc.connectionState === 'failed') {
             setStatus('Connection failed - try refreshing')
+            setIsConnected(false)
             toast.error('Connection failed')
+          } else if (pc.connectionState === 'disconnected') {
+            setStatus('Disconnected')
+            setIsConnected(false)
           }
         }
 
