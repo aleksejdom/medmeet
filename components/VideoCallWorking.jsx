@@ -189,7 +189,10 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
                   event: 'signal',
                   payload: {
                     type: 'offer',
-                    data: offer.toJSON(),
+                    data: {
+                      type: offer.type,
+                      sdp: offer.sdp
+                    },
                     from: 'doctor'
                   }
                 })
