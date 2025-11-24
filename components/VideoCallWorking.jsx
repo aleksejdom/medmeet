@@ -94,7 +94,11 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
               type: 'broadcast',
               event: 'ice',
               payload: { 
-                candidate: event.candidate.toJSON(),
+                candidate: {
+                  candidate: event.candidate.candidate,
+                  sdpMLineIndex: event.candidate.sdpMLineIndex,
+                  sdpMid: event.candidate.sdpMid
+                },
                 from: isDoctor ? 'doctor' : 'patient'
               }
             })
