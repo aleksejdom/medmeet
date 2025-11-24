@@ -504,7 +504,7 @@ export default function App() {
   // Video Call View
   if (activeCall) {
     return (
-      <VideoCallSimple
+      <VideoCallWorking
         appointmentId={activeCall}
         userRole={user?.role}
         onLeave={leaveVideoCall}
