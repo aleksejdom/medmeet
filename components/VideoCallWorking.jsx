@@ -333,7 +333,8 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            className="w-full h-full object-cover"
+            controls={false}
+            className="w-full h-full object-cover bg-black"
           />
           <div className={`absolute top-2 left-2 px-2 py-1 rounded text-white text-xs font-bold ${isConnected ? 'bg-green-600' : 'bg-gray-600'}`}>
             {isConnected ? (userRole === 'doctor' ? 'Patient' : 'Doctor') : 'Waiting...'}
