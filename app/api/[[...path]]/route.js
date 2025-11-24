@@ -529,6 +529,31 @@ export async function GET(request) {
       return NextResponse.json({ notifications: data || [] })
     }
 
+    // Get signals
+    if (path === '/api/signals') {
+      const url = new URL(request.url)
+      const appointmentId = url.searchParams.get('appointmentId')
+      const to = url.searchParams.get('to')
+      
+      const { data, error } = await supabase
+        .from('webrtc_signals')
+        .select('*')
+        .eq('appointment_id', appointmentId)
+        .eq('to_role', to)
+        .order('created_at', { ascending: true })
+      
+      if (error) throw error
+      
+      // Return signals with id, type, and data
+      const signals = (data || []).map(s => ({
+        id: s.id,
+        type: s.signal_type,
+        data: s.signal_data
+      }))
+      
+      return NextResponse.json(signals)
+    }
+
     return NextResponse.json({ message: 'Video Appointments API' })
   } catch (error) {
     console.error('API Error:', error)
