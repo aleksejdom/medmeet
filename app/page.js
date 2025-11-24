@@ -504,7 +504,7 @@ export default function App() {
   // Video Call View
   if (activeCall) {
     return (
-      <VideoCallSupabase
+      <VideoCallFixed
         appointmentId={activeCall}
         onLeave={leaveVideoCall}
       />
