@@ -104,61 +104,95 @@ export default function VideoCallFixed({ appointmentId, onLeave }) {
           }
         }
 
-        // Setup Supabase channel
+        // Setup Supabase channel with Perfect Negotiation pattern
         channel = supabase.channel(`call-${appointmentId}`)
         supabaseChannelRef.current = channel
 
-        let isOfferer = false
+        // Determine if we're polite (lower timestamp = polite)
+        const myTimestamp = Date.now()
 
         channel
           .on('broadcast', { event: 'join' }, async ({ payload }) => {
-            if (!isOfferer && pc.signalingState === 'stable') {
-              isOfferer = true
-              console.log('📞 Creating offer...')
-              const offer = await pc.createOffer()
-              await pc.setLocalDescription(offer)
-              channel.send({
-                type: 'broadcast',
-                event: 'offer',
-                payload: { offer: pc.localDescription }
-              })
+            console.log('👋 Peer joined')
+            // Determine politeness based on timestamp
+            if (payload.timestamp < myTimestamp) {
+              isPoliteRef.current = false // We're impolite, we initiate
+              console.log('🎯 I am impolite (initiator)')
+              
+              // Wait a bit for peer to be ready
+              await new Promise(r => setTimeout(r, 500))
+              
+              try {
+                makingOfferRef.current = true
+                const offer = await pc.createOffer()
+                await pc.setLocalDescription(offer)
+                channel.send({
+                  type: 'broadcast',
+                  event: 'description',
+                  payload: { description: pc.localDescription }
+                })
+                console.log('📤 Sent offer')
+              } catch (err) {
+                console.error('Error creating offer:', err)
+              } finally {
+                makingOfferRef.current = false
+              }
+            } else {
+              isPoliteRef.current = true // We're polite, we wait
+              console.log('😊 I am polite (waiter)')
             }
           })
-          .on('broadcast', { event: 'offer' }, async ({ payload }) => {
-            console.log('📨 Received offer')
-            if (pc.signalingState === 'stable') {
-              await pc.setRemoteDescription(payload.offer)
-              const answer = await pc.createAnswer()
-              await pc.setLocalDescription(answer)
-              channel.send({
-                type: 'broadcast',
-                event: 'answer',
-                payload: { answer: pc.localDescription }
-              })
-              console.log('📤 Sent answer')
-            }
-          })
-          .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-            console.log('📨 Received answer')
-            if (pc.signalingState === 'have-local-offer') {
-              await pc.setRemoteDescription(payload.answer)
+          .on('broadcast', { event: 'description' }, async ({ payload }) => {
+            console.log('📨 Received description:', payload.description.type)
+            
+            try {
+              const offerCollision = payload.description.type === 'offer' &&
+                                    (makingOfferRef.current || pc.signalingState !== 'stable')
+              
+              ignoreOfferRef.current = !isPoliteRef.current && offerCollision
+              
+              if (ignoreOfferRef.current) {
+                console.log('⚠️ Ignoring offer due to collision (I am impolite)')
+                return
+              }
+              
+              await pc.setRemoteDescription(payload.description)
+              
+              if (payload.description.type === 'offer') {
+                await pc.setLocalDescription(await pc.createAnswer())
+                channel.send({
+                  type: 'broadcast',
+                  event: 'description',
+                  payload: { description: pc.localDescription }
+                })
+                console.log('📤 Sent answer')
+              }
+            } catch (err) {
+              console.error('Error handling description:', err)
             }
           })
           .on('broadcast', { event: 'ice' }, async ({ payload }) => {
-            if (pc.remoteDescription) {
-              await pc.addIceCandidate(payload.candidate)
+            try {
+              if (payload.candidate) {
+                await pc.addIceCandidate(payload.candidate)
+              }
+            } catch (err) {
+              if (!ignoreOfferRef.current) {
+                console.error('Error adding ICE candidate:', err)
+              }
             }
           })
           .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
               console.log('✅ Subscribed to channel')
               setConnectionStatus('Waiting for other participant...')
-              // Announce presence
+              // Announce presence with timestamp
               channel.send({
                 type: 'broadcast',
                 event: 'join',
-                payload: { timestamp: Date.now() }
+                payload: { timestamp: myTimestamp }
               })
+              console.log('📢 Announced presence with timestamp:', myTimestamp)
             }
           })
 
