@@ -125,20 +125,23 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
 
         // Setup Supabase channel
         setStatus('Joining channel...')
-        const channel = supabase.channel(`medmeet-${appointmentId}`, {
-          config: {
-            broadcast: { self: true }
-          }
-        })
+        const channel = supabase.channel(`medmeet-${appointmentId}`)
         channelRef.current = channel
 
         // Subscribe to channel
         channel
           .on('broadcast', { event: 'signal' }, async ({ payload }) => {
+            // Ignore own messages
+            const myRole = isDoctor ? 'doctor' : 'patient'
+            if (payload.from === myRole) {
+              return
+            }
+            
             addLog(`📨 Received: ${payload.type} from ${payload.from}`)
             
             try {
-              if (payload.type === 'offer') {
+              if (payload.type === 'offer' && !isDoctor) {
+                // Only patient processes offers
                 addLog('Processing offer...')
                 await pc.setRemoteDescription(new RTCSessionDescription(payload.data))
                 const answer = await pc.createAnswer()
@@ -153,11 +156,12 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
                       type: answer.type,
                       sdp: answer.sdp
                     },
-                    from: isDoctor ? 'doctor' : 'patient'
+                    from: 'patient'
                   }
                 })
                 addLog('📤 Sent answer')
-              } else if (payload.type === 'answer') {
+              } else if (payload.type === 'answer' && isDoctor) {
+                // Only doctor processes answers
                 addLog('Processing answer...')
                 await pc.setRemoteDescription(new RTCSessionDescription(payload.data))
               }
