@@ -73,7 +73,13 @@ export default function VideoCallSupabase({ appointmentId, onLeave }) {
 
         // Add local stream tracks to peer connection
         stream.getTracks().forEach(track => {
-          peerConnection.addTrack(track, stream)
+          const sender = peerConnection.addTrack(track, stream)
+          console.log('➕ Added local track:', track.kind, 'id:', track.id)
+        })
+        
+        console.log('📡 Local tracks added:', {
+          video: stream.getVideoTracks().length,
+          audio: stream.getAudioTracks().length
         })
 
         // Handle incoming tracks
