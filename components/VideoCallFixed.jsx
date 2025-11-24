@@ -19,6 +19,9 @@ export default function VideoCallFixed({ appointmentId, onLeave }) {
   const peerConnectionRef = useRef(null)
   const supabaseChannelRef = useRef(null)
   const supabaseClientRef = useRef(null)
+  const makingOfferRef = useRef(false)
+  const ignoreOfferRef = useRef(false)
+  const isPoliteRef = useRef(false)
 
   useEffect(() => {
     let mounted = true
