@@ -80,31 +80,55 @@ export default function VideoCallSupabase({ appointmentId, onLeave }) {
         remoteStreamRef.current = new MediaStream()
         
         peerConnection.ontrack = (event) => {
-          console.log('Received remote track:', event.track.kind, event)
+          console.log('🎥 ONTRACK EVENT:', {
+            kind: event.track.kind,
+            trackId: event.track.id,
+            trackState: event.track.readyState,
+            streamsLength: event.streams?.length,
+            hasStream: !!event.streams?.[0]
+          })
           
-          // Add track to remote stream
-          if (event.track && remoteStreamRef.current) {
-            remoteStreamRef.current.addTrack(event.track)
-            console.log('Added track to remote stream. Total tracks:', remoteStreamRef.current.getTracks().length)
-          }
-          
-          // Set the stream on the video element
-          if (remoteVideoRef.current && remoteStreamRef.current) {
-            remoteVideoRef.current.srcObject = remoteStreamRef.current
-            console.log('Set remote video srcObject. Video tracks:', remoteStreamRef.current.getVideoTracks().length)
-          }
-          
-          // Update connection status when we have both audio and video
-          if (remoteStreamRef.current) {
-            const videoTracks = remoteStreamRef.current.getVideoTracks()
-            const audioTracks = remoteStreamRef.current.getAudioTracks()
+          // Try using the stream from the event first
+          if (event.streams && event.streams[0]) {
+            console.log('✅ Using stream from event')
+            remoteStreamRef.current = event.streams[0]
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = event.streams[0]
+              console.log('Set remote video from event stream')
+            }
+          } else {
+            // Fallback: manually build stream
+            console.log('⚠️ Building stream manually')
+            if (event.track && remoteStreamRef.current) {
+              remoteStreamRef.current.addTrack(event.track)
+              console.log('Added track to remote stream. Total tracks:', remoteStreamRef.current.getTracks().length)
+            }
             
-            if (videoTracks.length > 0 || audioTracks.length > 0) {
+            if (remoteVideoRef.current && remoteStreamRef.current) {
+              remoteVideoRef.current.srcObject = remoteStreamRef.current
+              console.log('Set remote video srcObject manually. Tracks:', {
+                video: remoteStreamRef.current.getVideoTracks().length,
+                audio: remoteStreamRef.current.getAudioTracks().length
+              })
+            }
+          }
+          
+          // Update connection status
+          setTimeout(() => {
+            const tracks = remoteStreamRef.current?.getTracks() || []
+            console.log('📊 Remote stream status:', {
+              totalTracks: tracks.length,
+              videoTracks: remoteStreamRef.current?.getVideoTracks().length,
+              audioTracks: remoteStreamRef.current?.getAudioTracks().length,
+              videoElementSrc: !!remoteVideoRef.current?.srcObject
+            })
+            
+            if (tracks.length > 0) {
               setIsConnected(true)
               setConnectionStatus('Connected')
               toast.success('Video call connected!')
             }
-          }
+          }, 100)
         }
 
         // Handle ICE candidates
