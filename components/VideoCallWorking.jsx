@@ -170,6 +170,12 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
             }
           })
           .on('broadcast', { event: 'ice' }, async ({ payload }) => {
+            // Ignore own messages
+            const myRole = isDoctor ? 'doctor' : 'patient'
+            if (payload.from === myRole) {
+              return
+            }
+            
             if (payload.candidate) {
               try {
                 await pc.addIceCandidate(new RTCIceCandidate(payload.candidate))
