@@ -72,18 +72,30 @@ export default function VideoCallWorking({ appointmentId, userRole, onLeave }) {
         pc.ontrack = (event) => {
           addLog(`🎥 Received ${event.track.kind} track`)
           
-          if (!remoteVideoRef.current.srcObject) {
-            remoteVideoRef.current.srcObject = new MediaStream()
-            addLog('Created remote MediaStream')
+          // Use the stream from the event if available
+          if (event.streams && event.streams[0]) {
+            addLog('✅ Using stream from event')
+            remoteVideoRef.current.srcObject = event.streams[0]
+            setIsConnected(true)
+            setStatus('Connected!')
+            toast.success('Call connected!')
+          } else {
+            // Fallback: create stream manually
+            addLog('⚠️ Creating stream manually')
+            if (!remoteVideoRef.current.srcObject) {
+              remoteVideoRef.current.srcObject = new MediaStream()
+            }
+            remoteVideoRef.current.srcObject.addTrack(event.track)
+            addLog(`Remote stream now has ${remoteVideoRef.current.srcObject.getTracks().length} tracks`)
+            
+            // Check if we have both tracks
+            const tracks = remoteVideoRef.current.srcObject.getTracks()
+            if (tracks.length >= 2) {
+              setIsConnected(true)
+              setStatus('Connected!')
+              toast.success('Call connected!')
+            }
           }
-          
-          const remoteStream = remoteVideoRef.current.srcObject
-          remoteStream.addTrack(event.track)
-          addLog(`Remote stream now has ${remoteStream.getTracks().length} tracks`)
-          
-          setIsConnected(true)
-          setStatus('Connected!')
-          toast.success('Call connected!')
         }
 
         // ICE candidates
